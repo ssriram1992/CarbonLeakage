@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 
 class Stage1:
     def __init__(self, DemInt = 200, DemSl = 1, invURcost = 15,
-            costLrrBase = 10, CostLrr_l = 100, CostLrr_q = 0,
-            costQrrBase = 0.1,  CostQrr_l = 0.1, CostQrr_q = 0,
-            CTrrs = [90, 910], borderTax = 100,
-            costLur = 5, costQur = 0.1, CTur = 0):
+            costLrrBase = 10, CostLrr_l = 10, CostLrr_q = 0,
+            costQrrBase = 0.1, upgradeLin = 20000, upgradeQuad = 30000,
+            CTrrs = {'l':75, 'h':75}, borderTax = 100,
+            costLur = 10, costQur = 0.1, CTur = 0):
         """
-        Linear Cost of production will be: costLrrBase + (1-emission)*CostLrr_l + (1-emission)(1-emission)*CostLrr_q
-        Quadratic Cost of production will be: costQrrBase + (1-emission)*CostQrr_l + (1-emission)(1-emission)*CostQrr_q
+        Linear Cost of production will be: costLrrBase + (1-emission)*CostLrr_l
+        Quadratic Cost of production will be: costQrrBase
         """
         self.DemInt = DemInt
         self.DemSl = DemSl
@@ -23,8 +23,8 @@ class Stage1:
         self.borderTax = borderTax
         self.CostLrr_l = CostLrr_l
         self.CostLrr_q = CostLrr_q
-        self.CostQrr_l = CostQrr_l
-        self.CostQrr_q = CostQrr_q
+        self.upgradeLin = upgradeLin
+        self.upgradeQuad = upgradeQuad
         self.invURcost = invURcost
     def solve(self, SolFile = None):
         """
@@ -32,9 +32,10 @@ class Stage1:
         """
         M = gp.Model("Stage 1")
         # M.setParam('OutputFlag', False)
-        # M.setParam('LogToConsole', False)
+        M.setParam('LogToConsole', False)
         M.params.nonconvex = 2     # Nonconvex optimization
-        scenarios = self.CTrrs.copy()
+        # M.params.MIPGap = 0.01
+        scenarios = list(self.CTrrs.keys()) #self.CTrrs.copy()
         # Variables
         emission = M.addVar(lb = 0, ub = 1, name = "emission")
         Qrrs = M.addVars(scenarios, ub=self.DemInt, name="Qrr")
@@ -45,18 +46,16 @@ class Stage1:
         invUR = M.addVar(name="invUR")
         M.addConstrs( Qurs[xi] <= invUR for xi in scenarios)
         M.addConstrs((Qs[xi] == Qrrs[xi] + Qurs[xi] for xi in scenarios))
-        nScen = len(scenarios)        
+        nScen = len(scenarios)
         costLrr = M.addVar(name="costLrr", lb = self.costLrrBase, ub = self.costLrrBase + self.CostLrr_l + self.CostLrr_q)
-        costQrr = M.addVar(name="costQrr", lb = self.costQrrBase, ub = self.costQrrBase + self.CostQrr_l + self.CostQrr_q)
         M.addConstr(costLrr == self.costLrrBase + (1-emission)*self.CostLrr_l + (1-emission)*(1-emission)*self.CostLrr_q, name="linCost")
-        M.addConstr(costQrr == self.costQrrBase + (1-emission)*self.CostQrr_l + (1-emission)*(1-emission)*self.CostQrr_q, name="quadCost")
-        objExpr = -invUR*self.invURcost
+        objExpr = -invUR*self.invURcost - self.upgradeLin*(1-emission) - self.upgradeQuad*(1-emission)*(1-emission)
         M.update()
         for xi in scenarios:
             revenuexi = (self.DemInt - self.DemSl*Qs[xi])*Qs[xi]
-            costRRxi = costLrr*Qrrs[xi] + 0.5*costQrr*Qrrs_sq[xi] #0.5*self.costQrrBase*Qrrs[xi]*Qrrs[xi]                 
+            costRRxi = costLrr*Qrrs[xi] + 0.5*self.costQrrBase*Qrrs_sq[xi] #0.5*self.costQrrBase*Qrrs[xi]*Qrrs[xi]
             costURxi = self.costLur*Qurs[xi] + 0.5*self.costQur*Qurs[xi]*Qurs[xi]
-            Taxesxi = self.borderTax*Qurs[xi] + xi*Qrrs[xi]*emission
+            Taxesxi = self.borderTax*Qurs[xi] + self.CTrrs[xi]*Qrrs[xi]*emission
             objExpr += (revenuexi - costRRxi - costURxi - Taxesxi)/nScen
         M.setObjective(objExpr, gp.GRB.MAXIMIZE)
         #####################
@@ -66,7 +65,7 @@ class Stage1:
             Qurs[xi].start = 0
             Qrrs[xi].start = 0
             Qs[xi].start = 0
-        emission.start = 0
+        emission.start = 1
         costLrr.start = self.costLrrBase + self.CostLrr_l + self.CostLrr_q
         #####################
         M.optimize()
@@ -77,7 +76,18 @@ class Stage1:
         self.expQurval = sum(Qurs[xi].X for xi in scenarios)/len(scenarios)
         self.expQsval = sum(Qs[xi].X for xi in scenarios)/len(scenarios)
         self.invURval = invUR.X
-        return self.expQrrval, self.expQurval, self.invURval, M.objVal
+        type = {xi:0 for xi in scenarios} # 0 - nowhere, 1 - only in RR, 2 - only in UR, 3 - in both; Order: scenarios
+        lookup = {0: "N", 1:"R", 2:"U", 3:"B"}
+        for xi in scenarios:
+            tol = 1e-3
+            val = 0
+            if Qrrs[xi].X > tol:
+                val += 1
+            if Qurs[xi].X > tol:
+                val += 2
+            type[xi] = lookup[val]
+        return self.expQrrval, self.expQurval, self.invURval, M.objVal, emission.X, type
+
 
 if __name__ == "__main__":
     stage1 = Stage1()
