@@ -76,7 +76,7 @@ class Stage1:
         self.expQurval = sum(Qurs[xi].X for xi in scenarios)/len(scenarios)
         self.expQsval = sum(Qs[xi].X for xi in scenarios)/len(scenarios)
         self.invURval = invUR.X
-        type = {xi:0 for xi in scenarios} # 0 - nowhere, 1 - only in RR, 2 - only in UR, 3 - in both; Order: scenarios
+        CLtype = {xi:0 for xi in scenarios} # 0 - nowhere, 1 - only in RR, 2 - only in UR, 3 - in both; Order: scenarios
         lookup = {0: "N", 1:"R", 2:"U", 3:"B"}
         for xi in scenarios:
             tol = 1e-3
@@ -85,9 +85,19 @@ class Stage1:
                 val += 1
             if Qurs[xi].X > tol:
                 val += 2
-            type[xi] = lookup[val]
-        return self.expQrrval, self.expQurval, self.invURval, M.objVal, emission.X, type
-
+            CLtype[xi] = lookup[val]
+        tol = 0.01
+        invType = ('I' if emission.X < 1-tol else 'B') if invUR.X < tol else ('M' if emission.X <1-tol else 'P')
+        # return self.expQrrval, self.expQurval, self.invURval, M.objVal, emission.X, CLtype, invType
+        ans = {}
+        ans['E-Qrr'] = self.expQrrval
+        ans['E-Qur'] = self.expQurval
+        ans['invUR'] = self.invURval
+        ans['profit'] = M.objVal
+        ans['emission'] = emission.X
+        ans['CLtype'] = CLtype
+        ans['invType'] = invType
+        return ans
 
 if __name__ == "__main__":
     stage1 = Stage1()
