@@ -1,6 +1,7 @@
 import numpy as np
-import gurobipy as gp
-import matplotlib.pyplot as plt
+# import gurobipy as gp
+# import matplotlib.pyplot as plt
+import pandas as pd
 from utils import *
 import Stage1 
 
@@ -25,6 +26,11 @@ def writedata(xGrid, yGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType,
     plotIt(xGrid, yGrid, profits, title = "Profits", folder=folder)
     plotIt(xGrid, yGrid, CLtype, title = "Types", folder=folder)
     plotIt(xGrid, yGrid, invType, title = "Investment Types", folder=folder)
+    bigArray = np.array([xGrid, yGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType]).reshape(9,-1).T
+    # df = pd.DataFrame(bigArray, columns=['x', 'y', 'Qrr', 'Qur', 'invUR', 'emission', 'profits', 'CLtype', 'invType'])
+    np.savetxt(folder+"alldata.csv",bigArray,delimiter=' ')
+    return bigArray
+    # write2xl([df],['allData'])
 
 
 def dataGenLin():
@@ -52,13 +58,16 @@ def dataGenLin():
             invType[i,j] = lookup[ans['invType']]
     writedata(meanGrid, devnGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType, folder = './data1/')
 
-def dataGenQuad():
+def dataGenQuad(folder='./data1/', bordertax=10):
     """
     This function roughly reproduces the result in Huang et al. 
     """
-    mean = np.array([100+i*15 for i in range(11)])
+    #mean = np.array([100+i*15 for i in range(11)])
+    # mean = np.linspace(100,250,31)
+    mean = np.linspace(0,95,20)
     # devn = np.array([5*i for i in range(21)])
-    devn = np.array([i*0.05 for i in range(21)]) # Coefficient of variation
+    # devn = np.array([i*0.1 for i in range(11)]) # Coefficient of variation
+    devn = np.linspace(0,1,26)
     meanGrid, devnGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType = makeOutputProtoTypes(mean, devn)
     for i in range(len(devn)):
         for j in range(len(mean)):
@@ -66,10 +75,12 @@ def dataGenQuad():
             stage1 = Stage1.Stage1(DemInt = 200, DemSl = 1, invURcost = 100,
                 costLrrBase = 10, CostLrr_l = 10, CostLrr_q = 0,
                 costQrrBase = 0.1, upgradeLin = 0, upgradeQuad = 20000,
-                CTrrs = input, borderTax = 10,
+                CTrrs = input, borderTax = bordertax,
                 costLur = 10, costQur = 0.1, CTur = 0)
             ans = stage1.solve()
-            print(input, " ---------- ", ans)
+            dictPrint(input, end="-----------")
+            dictPrint(ans)
+
             Qrr[i,j] = ans['E-Qrr']
             Qur[i,j] = ans['E-Qur']
             invUR[i,j] = ans['invUR']
@@ -79,10 +90,15 @@ def dataGenQuad():
             CLtype[i, j] = lookup[ans['CLtype']["Low"]]*100 + lookup[ans['CLtype']["Mid"]]*10 + lookup[ans['CLtype']["High"]]
             lookup = {'I':0, 'M':1, 'B':2, 'P':3}
             invType[i,j] = lookup[ans['invType']]
-    writedata(meanGrid, devnGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType, folder = './data1/')
+    return writedata(meanGrid, devnGrid, Qrr, Qur, invUR, emission, profits, CLtype, invType, folder = folder)
 
 
 if __name__ == "__main__":
-    dataGenQuad  ()
+    for BT in np.linspace(0,100,21):
+        print("***************************************")
+        print("******************{}********************".format(BT))
+        print("***************************************")
+        dataGenQuad (folder='./dat/BT_'+str(BT)+'_', bordertax = BT)
+    # dataGenQuad (folder='./data-BT10/', bordertax = 10)
     # print(ans) # expQrrval, expQurval, invURval, M.objVal, emission, type
 
