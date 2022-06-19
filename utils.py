@@ -1,6 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+def readComplete(name, col, prefix = './dat/run_20220417/Complete_', suffix = '.csv'):
+    aa = np.genfromtxt(prefix+name+suffix)
+    ans = aa[:, np.r_[0:3, col]]
+    return ans
 
 def dictPrint(ans, sep=';', end='\n'):
     for k in ans:   
