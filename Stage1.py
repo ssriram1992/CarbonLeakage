@@ -3,7 +3,7 @@ import gurobipy as gp
 import matplotlib.pyplot as plt
 
 class Stage1:
-    def __init__(self, DemInt = 200, DemSl = 1, invURcost = 15,
+    def __init__(self, DemInt = 323.5, DemSl = 2.3814, invURcost = 15,
             costLrrBase = 10, CostLrr_l = 10, CostLrr_q = 0,
             costQrrBase = 0.1, upgradeLin = 20000, upgradeQuad = 30000,
             CTrrs = {'l':75, 'h':75}, borderTax = 100,
@@ -88,6 +88,7 @@ class Stage1:
             CLtype[xi] = lookup[val]
         tol = 0.01
         invType = ('I' if emission.X < 1-tol else 'B') if invUR.X < tol else ('M' if emission.X <1-tol else 'P')
+        # B - Business as usual; I - Investment in sustainability;  M - investment inside, but also outside;   P is investment only outside
         # return self.expQrrval, self.expQurval, self.invURval, M.objVal, emission.X, CLtype, invType
         ans = {}
         ans['E-Qrr'] = self.expQrrval
