@@ -7,22 +7,49 @@ import sys
 
 if __name__ == '__main__':
     args = sys.argv
-    upgradeLin = 1000
-    BT = 50
-    uqList = [5000] + [10e3*(i+1) for i in range(5)]
-    for uq in uqList:
-        dataGenQuad(folder='./dat/test_'+str(uq)+'_', bordertax = BT, upgradeLin=0, upgradeQuad = uq, 
-        nMeanCT=4, nDevnCT=4)
-    ans = []
-    nCols = 9
-    for uq in uqList:
-        t1 = np.genfromtxt('./dat/test_'+str(uq)+'_alldata.csv')
+    # upgradeLin = 1000
+    BTs = np.linspace(0, 250, 26)
+    uqList = [i*1000 for i in [17.5,20,22.5]]
+    for BT in BTs:
+        ### For each value of border tax do the below. 
+        for uq in uqList:
+            dataGenQuad(folder='./dat/20221019_'+str(uq)+'_', bordertax = BT, upgradeLin=0, upgradeQuad = uq, 
+            nMeanCT=26, nDevnCT=26,invURcost=120)
+        ans = []
+        nCols = 9
+        for uq in uqList:
+            t1 = np.genfromtxt('./dat/20221019_'+str(uq)+'_alldata.csv')
+            t1len = t1.shape[0]
+            uqCol = np.ones((t1len, 1))*uq
+            t2 = np.hstack((uqCol, t1))
+            ans.append(t2)
+        final = np.vstack(ans)
+        """
+        The columns in the below file are the following in order.
+        upgradeQuad, meanCTrr, devnCTrr, Qrr, Qur, invUR, emission, profits, CLtype, invType
+        As a check, there should be 10 columns. 
+            - invType meaning.  0 means Domestic Investment in sustainability. 1 means investment domestically as well as outisde. 
+                                2 means no investment anywhere. 3 means investment only outside. 
+            - CLtype meaning.   Three digits. First digit for behaviour in "low" scenario, Second digit for behaviour in "medium" scenario
+                                Third digit for behavious in "high" CT scenario. In each scenario, 
+                                    - 0 means no production outside or inside. 
+                                    - 1 means production only domestically.
+                                    - 2 means production both domestically and externally. 
+                                    - 3 means production only externally. 
+
+        """
+        np.savetxt('dat/20221019Complete_'+str(BT)+'.csv', final)
+    ### 
+    nCols = 10
+    anss = []
+    for BT in BTs:
+        t1 = np.genfromtxt('dat/20221019Complete_'+str(BT)+'.csv')
         t1len = t1.shape[0]
-        uqCol = np.ones((t1len, 1))*uq
-        t2 = np.hstack((uqCol, t1))
-        ans.append(t2)
-    final = np.vstack(ans)
-    np.savetxt('dat/Complete_'+str(upgradeLin)+'.csv', final)
+        BTcol = np.ones((t1len, 1))*BT
+        t2 = np.hstack((BTcol, t1))
+        anss.append(t2)
+    final = np.vstack(anss)
+    np.savetxt('dat/20221019BTMods.csv', final)
 
 
 
