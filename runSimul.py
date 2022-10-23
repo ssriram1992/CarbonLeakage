@@ -6,19 +6,17 @@ from Stage1lin import *
 import sys
 
 if __name__ == '__main__':
-    args = sys.argv
-    # upgradeLin = 1000
     BTs = np.linspace(0, 250, 26)
-    uqList = [i*1000 for i in [17.5,20,22.5]]
+    uqList = [i*1000 for i in [15, 17.5,20,22.5, 25]]
     for BT in BTs:
         ### For each value of border tax do the below. 
         for uq in uqList:
-            dataGenQuad(folder='./dat/20221019_'+str(uq)+'_', bordertax = BT, upgradeLin=0, upgradeQuad = uq, 
+            dataGenQuad(folder='./dat/20221019_'+str(uq/100)+'_'+str(BT)+'_', bordertax = BT, upgradeLin=0, upgradeQuad = uq, 
             nMeanCT=26, nDevnCT=26,invURcost=120)
         ans = []
         nCols = 9
         for uq in uqList:
-            t1 = np.genfromtxt('./dat/20221019_'+str(uq)+'_alldata.csv')
+            t1 = np.genfromtxt('./dat/20221019_'+str(uq/100)+'_'+str(BT)+'_alldata.csv')
             t1len = t1.shape[0]
             uqCol = np.ones((t1len, 1))*uq
             t2 = np.hstack((uqCol, t1))
